@@ -13,7 +13,7 @@ import {
   Unique,
   OneToMany,
 } from 'typeorm';
-import { budgetStatus } from 'src/constants/enums/budget-status.enum';
+import { budgetStatus } from 'src/common/constants/enums/budget-status.enum';
 
 @Unique(['name', 'user_id'])
 @Entity('budgets')
