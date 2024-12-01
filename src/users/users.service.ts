@@ -1,4 +1,9 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -48,5 +53,23 @@ export class UsersService {
 
   async findById(id: string) {
     return await this.userRepository.findOne({ where: { id } });
+  }
+
+  async onboardingViewed(id: string): Promise<User> {
+    try {
+      const result = await this.userRepository.update(
+        { id },
+        { onboarding: true },
+      );
+
+      if (!result.affected)
+        throw new InternalServerErrorException(
+          'Error: The user data could not be updated',
+        );
+      return await this.userRepository.findOne({ where: { id } });
+    } catch (error) {
+      console.error('Error during onboarding updating', error);
+      throw error;
+    }
   }
 }
