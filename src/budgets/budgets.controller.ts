@@ -20,6 +20,7 @@ import { IPayloadToken } from 'src/common/interfaces/payload-token.interface';
 import { FilterBudgetDto } from './dto/filter-budget.dto';
 import {
   ApiBearerAuth,
+  ApiInternalServerErrorResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiParam,
@@ -93,11 +94,36 @@ export class BudgetsController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateBudgetDto: UpdateBudgetDto) {
-    return this.budgetsService.update(+id, updateBudgetDto);
+    return this.budgetsService.update(id, updateBudgetDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.budgetsService.remove(+id);
+  @ApiParam({
+    name: 'id',
+    description: 'The unique identifier of the budget (UUID).',
+    required: true,
+  })
+  @ApiOkResponse({
+    description: 'Budget deleted successfully.',
+    schema: {
+      example: {
+        message: 'Budget deleted successfully',
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized access.',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Error: The budget could not be deleted',
+  })
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<{
+    message: string;
+  }> {
+    const user = req.user as IPayloadToken;
+    return await this.budgetsService.remove(id, user.sub);
   }
 }

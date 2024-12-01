@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateBudgetDto } from './dto/create-budget.dto';
 import { UpdateBudgetDto } from './dto/update-budget.dto';
 import { Budget } from './entities/budget.entity';
@@ -43,9 +48,9 @@ export class BudgetsService {
     }
   }
 
-  findOne(id: string, user_id: string): Promise<Budget> {
+  async findOne(id: string, user_id: string): Promise<Budget> {
     try {
-      const budget = this.budgetsRepository.findOne({
+      const budget = await this.budgetsRepository.findOne({
         where: {
           id,
           user_id,
@@ -62,12 +67,34 @@ export class BudgetsService {
     }
   }
 
-  update(id: number, updateBudgetDto: UpdateBudgetDto) {
+  update(id: string, updateBudgetDto: UpdateBudgetDto) {
     return `This action updates a #${id} budget`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} budget`;
+  async remove(
+    id: string,
+    user_id: string,
+  ): Promise<{
+    message: string;
+  }> {
+    try {
+      const result = await this.budgetsRepository.delete({
+        id,
+        user_id,
+      });
+
+      if (!result.affected)
+        throw new InternalServerErrorException(
+          'Error: The budget could not be deleted',
+        );
+
+      return {
+        message: 'Budget deleted successfully',
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   prepareBudgetWhereClause(user_id: string, filterOptions: FilterBudgetDto) {
