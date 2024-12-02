@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -8,7 +9,7 @@ import { UpdateBudgetDto } from './dto/update-budget.dto';
 import { Budget } from './entities/budget.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-// import { CategoriesService } from 'src/categories/categories.service';
+import { CategoriesService } from 'src/categories/categories.service';
 import { FilterBudgetDto } from './dto/filter-budget.dto';
 import { budgetStatus } from 'src/common/constants/enums/budget-status.enum';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -18,7 +19,7 @@ export class BudgetsService {
   constructor(
     @InjectRepository(Budget)
     private readonly budgetsRepository: Repository<Budget>,
-    // private readonly categoriesService: CategoriesService,
+    private readonly categoriesService: CategoriesService,
   ) {}
 
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
@@ -35,11 +36,64 @@ export class BudgetsService {
     }
   }
 
-  create(createBudgetDto: CreateBudgetDto) {
-    return 'This action adds a new budget';
+  async create(
+    user_id: string,
+    createBudgetDto: CreateBudgetDto,
+  ): Promise<Budget> {
+    try {
+      const { name, category_name, amount, month } = createBudgetDto;
+
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth();
+
+      if (month < currentMonth) {
+        throw new BadRequestException(
+          'The selected month cannot be in the past.',
+        );
+      }
+
+      // Calculate start and end dates
+      const start_date = new Date(currentYear, month, 1);
+      const end_date = new Date(currentYear, month + 1, 0);
+
+      // define status for budget
+      const status =
+        month === currentMonth ? budgetStatus.ACTIVE : budgetStatus.PENDING;
+
+      let category = await this.categoriesService.findByCategoryName(
+        user_id,
+        category_name,
+      );
+
+      // If the category does not exist, create it
+      if (!category) {
+        category = await this.categoriesService.create({
+          name: category_name,
+          user_id,
+        });
+      }
+
+      const newBudget = this.budgetsRepository.create({
+        user_id,
+        name,
+        category,
+        amount,
+        start_date,
+        end_date,
+        status,
+      });
+
+      return await this.budgetsRepository.save(newBudget);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
-  async findAll(user_id: string, filterOptions: FilterBudgetDto) {
+  async findAll(
+    user_id: string,
+    filterOptions: FilterBudgetDto,
+  ): Promise<Budget[]> {
     try {
       const whereClause: any = this.prepareBudgetWhereClause(
         user_id,
@@ -71,7 +125,6 @@ export class BudgetsService {
           id,
           user_id,
         },
-        relations: ['transactions'],
       });
       if (!budget) {
         throw new NotFoundException('Budget not found');

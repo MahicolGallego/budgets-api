@@ -38,8 +38,22 @@ export class BudgetsController {
   constructor(private readonly budgetsService: BudgetsService) {}
 
   @Post()
-  create(@Body() createBudgetDto: CreateBudgetDto) {
-    return this.budgetsService.create(createBudgetDto);
+  @ApiOkResponse({
+    description: 'Budget created successfully.',
+    type: Budget,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized access.',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Error: The budget could not be created.',
+  })
+  create(
+    @Body() createBudgetDto: CreateBudgetDto,
+    @Req() req: Request,
+  ): Promise<Budget> {
+    const user = req.user as IPayloadToken;
+    return this.budgetsService.create(user.sub, createBudgetDto);
   }
 
   @Get()
