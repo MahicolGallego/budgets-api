@@ -2,6 +2,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { CategorySeeder } from './seeders/category.seeder';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,6 +18,13 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  
+  const categorySeeder = app.get(CategorySeeder);
+
+  await categorySeeder.run();
+  console.log('Seeding complete.');
+
+  await app.close();
 
   //enable deserialization of response objects (apply class-transformer)
   const reflector = app.get(Reflector);
