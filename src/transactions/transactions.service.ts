@@ -1,26 +1,117 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { Transaction } from './entities/transaction.entity';
+import { Budget } from '../budgets/entities/budget.entity';
 
 @Injectable()
 export class TransactionsService {
-  create(createTransactionDto: CreateTransactionDto) {
-    return 'This action adds a new transaction';
+  constructor(
+    @InjectRepository(Transaction)
+    private readonly transactionRepository: Repository<Transaction>,
+    @InjectRepository(Budget)
+    private readonly budgetRepository: Repository<Budget>,
+  ) {}
+
+  // Crear una transacción
+  async create(createTransactionDto: CreateTransactionDto) {
+    const { budget_id, amount, date, description } = createTransactionDto;
+
+    if (amount <= 0) {
+      throw new BadRequestException('The amount must be greater than 0.');
+    }
+
+    const budget = await this.budgetRepository.findOne({ where: { id: +budget_id } });
+
+    if (!budget) {
+      throw new NotFoundException(`Budget with ID ${budget_id} not found.`);
+    }
+
+    if (new Date(date) < new Date(budget.start_date) || new Date(date) > new Date(budget.end_date)) {
+      throw new BadRequestException('The date must fall within the budget range.');
+    }
+
+    const transaction = this.transactionRepository.create({
+      budget_id,
+      amount,
+      date,
+      description,
+    });
+
+    return this.transactionRepository.save(transaction);
   }
 
-  findAll() {
-    return `This action returns all transactions`;
+  // Obtener todas las transacciones con filtros opcionales
+  async findAll(minDate?: string, maxDate?: string, minAmount?: number, maxAmount?: number) {
+    const query = this.transactionRepository.createQueryBuilder('transaction');
+
+    if (minDate) query.andWhere('transaction.date >= :minDate', { minDate });
+    if (maxDate) query.andWhere('transaction.date <= :maxDate', { maxDate });
+    if (minAmount) query.andWhere('transaction.amount >= :minAmount', { minAmount });
+    if (maxAmount) query.andWhere('transaction.amount <= :maxAmount', { maxAmount });
+
+    return query.getMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} transaction`;
+  // Obtener una transacción específica
+  async findOne(id: string) {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id },
+      relations: ['budget'],
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${id} not found.`);
+    }
+
+    return transaction;
   }
 
-  update(id: number, updateTransactionDto: UpdateTransactionDto) {
-    return `This action updates a #${id} transaction`;
+  // Actualizar una transacción
+  async update(id: string, updateTransactionDto: UpdateTransactionDto) {
+    const { budget_id, amount, date } = updateTransactionDto;
+
+    const transaction = await this.transactionRepository.findOne({ where: { id } });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${id} not found.`);
+    }
+
+    if (amount !== undefined && amount <= 0) {
+      throw new BadRequestException('The amount must be greater than 0.');
+    }
+
+    if (budget_id || date) {
+      const budget = await this.budgetRepository.findOne({ where: { id: +budget_id  } });
+
+      // budget_id ?? transaction.budget_id
+
+      if (!budget) {
+        throw new NotFoundException(`Budget with ID ${budget_id} not found.`);
+      }
+
+      if (date && (new Date(date) < new Date(budget.start_date) || new Date(date) > new Date(budget.end_date))) {
+        throw new BadRequestException('The date must fall within the budget range.');
+      }
+
+      transaction.budget = budget;
+    }
+
+    Object.assign(transaction, updateTransactionDto);
+
+    return this.transactionRepository.save(transaction);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} transaction`;
+  // Eliminar una transacción
+  async remove(id: string) {
+    const transaction = await this.transactionRepository.findOne({ where: { id } });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${id} not found.`);
+    }
+
+    return this.transactionRepository.remove(transaction);
   }
 }
