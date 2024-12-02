@@ -1,4 +1,4 @@
-import { Exclude } from 'class-transformer';
+import { Exclude, Transform } from 'class-transformer';
 import { Category } from 'src/categories/entities/category.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
@@ -14,32 +14,42 @@ import {
   OneToMany,
 } from 'typeorm';
 import { budgetStatus } from 'src/common/constants/enums/budget-status.enum';
+import { ApiProperty } from '@nestjs/swagger';
 
 @Unique(['name', 'user_id'])
 @Entity('budgets')
 export class Budget {
+  @ApiProperty()
   @PrimaryGeneratedColumn()
-  id: number;
+  id: string;
 
+  @Exclude()
   @Column('uuid')
   user_id: string;
 
+  @ApiProperty()
   @Column({ type: 'varchar', length: 50 })
   name: string;
 
+  @Exclude()
   @Column('uuid')
   category_id: string;
 
+  @ApiProperty()
+  @Transform(({ value }) => parseFloat(value))
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
 
+  @ApiProperty()
   @Column({ type: 'date' })
   start_date: Date;
 
+  @ApiProperty()
   @Column({ type: 'date' })
   end_date: Date;
 
-  @Column({ type: 'enum', enum: budgetStatus })
+  @ApiProperty()
+  @Column({ type: 'enum', enum: budgetStatus, default: budgetStatus.PENDING })
   status: budgetStatus;
 
   @Exclude()
@@ -50,14 +60,17 @@ export class Budget {
   @UpdateDateColumn()
   updated_at: Date;
 
+  @Exclude()
   @ManyToOne(() => User, (user) => user.budgets, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @ApiProperty()
   @ManyToOne(() => Category, (category) => category.budgets)
   @JoinColumn({ name: 'category_id' })
   category: Category;
 
+  @Exclude()
   @OneToMany(() => Transaction, (transaction) => transaction.budget)
   transactions: Transaction[];
 }
