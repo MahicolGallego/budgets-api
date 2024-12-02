@@ -1,4 +1,4 @@
-import { Exclude } from 'class-transformer';
+import { Exclude, Transform } from 'class-transformer';
 import { Budget } from 'src/budgets/entities/budget.entity';
 import {
   Entity,
@@ -18,6 +18,7 @@ export class Transaction {
   @Column('uuid')
   budget_id: string;
 
+  @Transform(({ value }) => parseFloat(value))
   @Column('decimal', { precision: 10, scale: 2 })
   amount: number;
 

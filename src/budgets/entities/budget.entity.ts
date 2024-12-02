@@ -1,4 +1,4 @@
-import { Exclude } from 'class-transformer';
+import { Exclude, Transform } from 'class-transformer';
 import { Category } from 'src/categories/entities/category.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
@@ -36,6 +36,7 @@ export class Budget {
   category_id: string;
 
   @ApiProperty()
+  @Transform(({ value }) => parseFloat(value))
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
 
