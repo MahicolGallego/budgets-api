@@ -18,7 +18,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  
+
   const categorySeeder = app.get(CategorySeeder);
 
   await categorySeeder.run();

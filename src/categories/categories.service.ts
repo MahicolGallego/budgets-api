@@ -1,39 +1,49 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 @Injectable()
 export class CategoriesService {
-  constructor(@InjectRepository(Category) private readonly categoryRepository: Repository<Category>) {}
+  constructor(
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
+  ) {}
   async create(createCategoryDto: CreateCategoryDto) {
-    const categoryEntity = this.categoryRepository.create(createCategoryDto);
-    const response = await this.categoryRepository.save(categoryEntity)
-    return response;
-  }
-
-  async findAll(userId?: string) {
-    const categoriesWithUserId = await this.categoryRepository.find({
-      where: { user_id: userId},
-    });
-    
-    const categoriesWithNullUserId = await this.categoryRepository.find({
-      where: { user_id: null },
-    });
-
-    if (categoriesWithUserId ) {
-      const combinedCategories = [...categoriesWithUserId, ...categoriesWithNullUserId];
-      return combinedCategories;
-    } else {
-      return categoriesWithNullUserId
+    try {
+      const categoryEntity = this.categoryRepository.create(createCategoryDto);
+      const response = await this.categoryRepository.save(categoryEntity);
+      return response;
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-    
   }
 
-  async findByCategoryName(categoryName: string): Promise<Category> {
-    return this.categoryRepository.findOne({ where: { name: categoryName } });
+  async findAll(userId: string): Promise<Category[]> {
+    try {
+      return await this.categoryRepository.find({
+        where: { user_id: In([userId, null]) },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async findByCategoryName(
+    userId: string,
+    categoryName: string,
+  ): Promise<Category> {
+    try {
+      return this.categoryRepository.findOne({
+        where: { user_id: userId, name: categoryName },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   // findOne(id: number) {
