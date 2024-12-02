@@ -32,6 +32,10 @@ export class CategoriesService {
     
   }
 
+  async findByCategoryName(categoryName: string): Promise<Category> {
+    return this.categoryRepository.findOne({ where: { name: categoryName } });
+  }
+
   // findOne(id: number) {
   //   return `This action returns a #${id} category`;
   // }

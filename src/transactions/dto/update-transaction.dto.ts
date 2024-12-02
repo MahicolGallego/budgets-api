@@ -1,4 +1,20 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateTransactionDto } from './create-transaction.dto';
+import { IsUUID, IsNumber, IsDateString, IsOptional, IsString, Min } from 'class-validator';
 
-export class UpdateTransactionDto extends PartialType(CreateTransactionDto) {}
+export class UpdateTransactionDto {
+  @IsOptional()
+  @IsUUID()
+  budget_id?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01, { message: 'The amount must be greater than 0.' })
+  amount?: number;
+
+  @IsOptional()
+  @IsDateString()
+  date?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
