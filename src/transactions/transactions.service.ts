@@ -4,26 +4,25 @@ import { Repository } from 'typeorm';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Transaction } from './entities/transaction.entity';
-import { Budget } from '../budgets/entities/budget.entity';
+import { BudgetsService } from 'src/budgets/budgets.service';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
-    @InjectRepository(Budget)
-    private readonly budgetRepository: Repository<Budget>,
+    private readonly budgetService: BudgetsService
   ) {}
 
   // Crear una transacción
-  async create(createTransactionDto: CreateTransactionDto) {
+  async create(user_id: string, createTransactionDto: CreateTransactionDto) {
     const { budget_id, amount, date, description } = createTransactionDto;
 
     if (amount <= 0) {
       throw new BadRequestException('The amount must be greater than 0.');
     }
 
-    const budget = await this.budgetRepository.findOne({ where: { id: +budget_id } });
+    const budget = await this.budgetService.findOne( budget_id, user_id );
 
     if (!budget) {
       throw new NotFoundException(`Budget with ID ${budget_id} not found.`);
@@ -70,7 +69,7 @@ export class TransactionsService {
   }
 
   // Actualizar una transacción
-  async update(id: string, updateTransactionDto: UpdateTransactionDto) {
+  async update(user_id: string, id: string, updateTransactionDto: UpdateTransactionDto) {
     const { budget_id, amount, date } = updateTransactionDto;
 
     const transaction = await this.transactionRepository.findOne({ where: { id } });
@@ -84,7 +83,7 @@ export class TransactionsService {
     }
 
     if (budget_id || date) {
-      const budget = await this.budgetRepository.findOne({ where: { id: +budget_id  } });
+      const budget = await this.budgetService.findOne( budget_id, user_id );
 
       // budget_id ?? transaction.budget_id
 

@@ -8,6 +8,7 @@ import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Budget]), CategoriesModule, UsersModule],
+  exports: [BudgetsService],
   controllers: [BudgetsController],
   providers: [BudgetsService],
 })

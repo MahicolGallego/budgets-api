@@ -6,13 +6,19 @@ import {
   Patch,
   Param,
   Delete,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Transaction } from './entities/transaction.entity';
+import { IPayloadToken } from 'src/common/interfaces/payload-token.interface';
+import { Request } from 'express';
+import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @ApiTags('Transactions') // Define el grupo en Swagger
 @Controller('transactions')
 export class TransactionsController {
@@ -26,8 +32,9 @@ export class TransactionsController {
     type: Transaction,
   }) // Respuesta exitosa
   @ApiResponse({ status: 400, description: 'Invalid input.' }) // Error de validación
-  create(@Body() createTransactionDto: CreateTransactionDto) {
-    return this.transactionsService.create(createTransactionDto);
+  create(@Req() req: Request, @Body() createTransactionDto: CreateTransactionDto) {
+    const user = req.user as IPayloadToken;
+    return this.transactionsService.create(user.sub, createTransactionDto);
   }
 
   @Get()
@@ -65,10 +72,12 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found.' }) // Error de no encontrado
   @ApiResponse({ status: 400, description: 'Invalid input.' }) // Error de validación
   update(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() updateTransactionDto: UpdateTransactionDto,
   ) {
-    return this.transactionsService.update(id, updateTransactionDto);
+    const user = req.user as IPayloadToken;
+    return this.transactionsService.update(user.sub, id, updateTransactionDto);
   }
 
   @Delete(':id')
