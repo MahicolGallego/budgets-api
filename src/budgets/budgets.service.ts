@@ -13,6 +13,7 @@ import { CategoriesService } from 'src/categories/categories.service';
 import { FilterBudgetDto } from './dto/filter-budget.dto';
 import { budgetStatus } from 'src/common/constants/enums/budget-status.enum';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { IBudgetBalance } from './interfaces/balance.interface';
 
 @Injectable()
 export class BudgetsService {
@@ -40,39 +41,39 @@ export class BudgetsService {
     user_id: string,
     createBudgetDto: CreateBudgetDto,
   ): Promise<Budget> {
-    try {
-      const { name, category_name, amount, month } = createBudgetDto;
+    const { name, category_name, amount, month } = createBudgetDto;
 
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
 
-      if (month < currentMonth) {
-        throw new BadRequestException(
-          'The selected month cannot be in the past.',
-        );
-      }
-
-      // Calculate start and end dates
-      const start_date = new Date(currentYear, month, 1);
-      const end_date = new Date(currentYear, month + 1, 0);
-
-      // define status for budget
-      const status =
-        month === currentMonth ? budgetStatus.ACTIVE : budgetStatus.PENDING;
-
-      let category = await this.categoriesService.findByCategoryName(
-        user_id,
-        category_name,
+    if (month < currentMonth) {
+      throw new BadRequestException(
+        'The selected month cannot be in the past.',
       );
+    }
 
-      // If the category does not exist, create it
-      if (!category) {
-        category = await this.categoriesService.create({
-          name: category_name,
-          user_id,
-        });
-      }
+    // Calculate start and end dates
+    const start_date = new Date(currentYear, month, 1);
+    const end_date = new Date(currentYear, month + 1, 0);
 
+    // define status for budget
+    const status =
+      month === currentMonth ? budgetStatus.ACTIVE : budgetStatus.PENDING;
+
+    let category = await this.categoriesService.findByCategoryName(
+      user_id,
+      category_name,
+    );
+
+    // If the category does not exist, create it
+    if (!category) {
+      category = await this.categoriesService.create({
+        name: category_name,
+        user_id,
+      });
+    }
+
+    try {
       const newBudget = this.budgetsRepository.create({
         user_id,
         name,
@@ -136,8 +137,82 @@ export class BudgetsService {
     }
   }
 
-  update(id: string, updateBudgetDto: UpdateBudgetDto) {
-    return `This action updates a #${id} budget`;
+  async update(
+    id: string,
+    user_id: string,
+    updateBudgetDto: UpdateBudgetDto,
+  ): Promise<Budget> {
+    const { name, amount, category_name, month } = updateBudgetDto;
+
+    try {
+      // Buscar el presupuesto
+      const budget = await this.budgetsRepository.findOne({
+        where: { id, user_id },
+      });
+      if (!budget) {
+        throw new NotFoundException('Budget not found.');
+      }
+
+      if (name) budget.name = name;
+      if (amount) budget.amount = amount;
+
+      // If the category to update does not exist, create it
+      if (category_name) {
+        const category = await this.categoriesService.findByCategoryName(
+          user_id,
+          category_name,
+        );
+        if (category) {
+          budget.category_id = category.id;
+        } else {
+          const newCategory = await this.categoriesService.create({
+            name: category_name,
+            user_id,
+          });
+          budget.category_id = newCategory.id;
+        }
+      }
+
+      //
+      if (month) {
+        if (budget.status !== budgetStatus.PENDING)
+          throw new BadRequestException(
+            'The period of the budget cannot be updated if his status is active or completed',
+          );
+
+        const currentDate = new Date();
+
+        if (month < currentDate.getMonth()) {
+          throw new BadRequestException(
+            'The budget date cannot be updated to a month earlier than the current month.',
+          );
+        }
+        const start_date = new Date(currentDate.getFullYear(), month, 1);
+        const end_date = new Date(currentDate.getFullYear(), month + 1, 0);
+
+        budget.start_date = start_date;
+        budget.end_date = end_date;
+
+        if (month === currentDate.getMonth()) {
+          budget.status = budgetStatus.ACTIVE;
+        }
+      }
+
+      const result = await this.budgetsRepository.update(
+        { id, user_id },
+        budget,
+      );
+
+      if (!result.affected)
+        throw new InternalServerErrorException(
+          'Error: The budget could not be updated',
+        );
+
+      return await this.findOne(id, user_id);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async remove(
@@ -159,6 +234,63 @@ export class BudgetsService {
 
       return {
         message: 'Budget deleted successfully',
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async getBalance(id: string, user_id: string): Promise<IBudgetBalance> {
+    try {
+      const budget = await this.budgetsRepository.findOne({
+        where: { id, user_id },
+        relations: ['transactions'],
+      });
+      if (!budget) {
+        throw new NotFoundException(
+          'Budget to calculate the balance not found',
+        );
+      }
+
+      const initial_amount = budget.amount;
+
+      const transactions = budget.transactions;
+
+      if (!transactions.length) {
+        return {
+          initial_amount,
+          spent_amount: 0,
+          percentage_spent_amount: 0,
+          remaining_amount: initial_amount,
+          percentage_remaining_amount: 100,
+        };
+      }
+
+      const spent_amount = transactions.reduce(
+        (accumulated, currentTransaction) => {
+          return accumulated + currentTransaction.amount;
+        },
+        0,
+      );
+
+      const percentage_spent_amount = (spent_amount * 100) / initial_amount;
+
+      const remaining_amount =
+        initial_amount - spent_amount <= 0 ? 0 : initial_amount - spent_amount;
+
+      const percentage_remaining_amount =
+        remaining_amount <= 0 ? 0 : (remaining_amount * 100) / initial_amount;
+
+      // Return calculations with percentages to 2 decimal places
+      return {
+        initial_amount,
+        spent_amount,
+        percentage_spent_amount: parseFloat(percentage_spent_amount.toFixed(2)),
+        remaining_amount,
+        percentage_remaining_amount: parseFloat(
+          percentage_remaining_amount.toFixed(2),
+        ),
       };
     } catch (error) {
       console.error(error);
