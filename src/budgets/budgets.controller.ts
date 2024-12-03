@@ -48,12 +48,12 @@ export class BudgetsController {
   @ApiInternalServerErrorResponse({
     description: 'Error: The budget could not be created.',
   })
-  create(
+  async create(
     @Body() createBudgetDto: CreateBudgetDto,
     @Req() req: Request,
   ): Promise<Budget> {
     const user = req.user as IPayloadToken;
-    return this.budgetsService.create(user.sub, createBudgetDto);
+    return await this.budgetsService.create(user.sub, createBudgetDto);
   }
 
   @Get()
@@ -107,8 +107,31 @@ export class BudgetsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBudgetDto: UpdateBudgetDto) {
-    return this.budgetsService.update(id, updateBudgetDto);
+  @ApiParam({
+    name: 'id',
+    description: 'The unique identifier of the budget (UUID).',
+    required: true,
+  })
+  @ApiOkResponse({
+    description: 'Budget updated successfully.',
+    type: Budget,
+  })
+  @ApiNotFoundResponse({
+    description: 'Budget not found.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized access.',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Error: The budget could not be updated.',
+  })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateBudgetDto: UpdateBudgetDto,
+    @Req() req: Request,
+  ): Promise<Budget> {
+    const user = req.user as IPayloadToken;
+    return await this.budgetsService.update(id, user.sub, updateBudgetDto);
   }
 
   @Delete(':id')
