@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -11,7 +11,7 @@ export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
-    private readonly budgetService: BudgetsService
+    private readonly budgetService: BudgetsService,
   ) {}
 
   // Crear una transacción
@@ -113,4 +113,12 @@ export class TransactionsService {
 
     return this.transactionRepository.remove(transaction);
   }
+
+  async findByBudgetId(budgetId: string): Promise<Transaction[]> {
+    return this.transactionRepository.find({
+      where: { budget: { id: budgetId } },  // Relacionar con el presupuesto
+      relations: ['budget'],  // Asegúrate de incluir la relación del presupuesto
+    });
+  }
+
 }

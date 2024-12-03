@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -13,6 +15,8 @@ import { CategoriesService } from 'src/categories/categories.service';
 import { FilterBudgetDto } from './dto/filter-budget.dto';
 import { budgetStatus } from 'src/common/constants/enums/budget-status.enum';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { TransactionsService } from 'src/transactions/transactions.service';
+import AlertsGateway from 'src/alerts/alert.gateway';
 import { IBudgetBalance } from './interfaces/balance.interface';
 
 @Injectable()
@@ -21,6 +25,9 @@ export class BudgetsService {
     @InjectRepository(Budget)
     private readonly budgetsRepository: Repository<Budget>,
     private readonly categoriesService: CategoriesService,
+    @Inject(forwardRef(() => TransactionsService))
+    private readonly transactionsService: TransactionsService,
+    private readonly alertsGateway: AlertsGateway,
   ) {}
 
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
@@ -385,4 +392,58 @@ export class BudgetsService {
       throw error;
     }
   }
+
+  async calculateTotalSpent(budgetId: string): Promise<number> {
+    try {
+      const transactions = await this.transactionsService.findByBudgetId(budgetId);  // Obtén las transacciones
+      const totalSpent = transactions.reduce((total, transaction) => total + transaction.amount, 0);  // Calcula el total
+
+      // Obtén el presupuesto
+      const budget = await this.budgetsRepository.findOne({ where: { id: budgetId } });
+
+      if (!budget) {
+        throw new InternalServerErrorException('Budget not found');
+      }
+
+      // Verifica si el total gastado excede el presupuesto
+      if (totalSpent > budget.amount) {
+        const message = `Warning: You have exceeded your budget for ${budget.name} by ${totalSpent - budget.amount}`;
+        this.alertsGateway.sendAlert(message);  // Envia la alerta al cliente
+      }
+
+      return totalSpent;
+    } catch (error) {
+      console.error(error);
+      throw new InternalServerErrorException('Error calculating total spent');
+    }
+  }
+  
+  async checkBudgetExceedance(budgetId: string, threshold: number = 0.9): Promise<boolean> {
+    try {
+      const budget = await this.budgetsRepository.findOne({
+        where: { id: budgetId },
+        relations: ['transactions'], // Relacionar las transacciones con el presupuesto
+      });
+  
+      if (!budget) {
+        throw new NotFoundException('Budget not found');
+      }
+  
+      const totalSpent = await this.calculateTotalSpent(budgetId);
+  
+      // Comparar si el gasto total excede el porcentaje (por defecto 90%)
+      if (totalSpent > budget.amount * threshold) {
+        // Aquí puedes emitir una alerta, por ejemplo a través de WebSockets o alguna notificación
+        console.log(`Alert: Budget exceeded for ${budget.name}`);
+        return true;
+      }
+  
+      return false;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+  
+
 }

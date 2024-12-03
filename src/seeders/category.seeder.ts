@@ -13,9 +13,16 @@ export class CategorySeeder {
   async run() {
     // Datos de ejemplo para las categorías
     const categories = [
-      { name: 'Food', user_id: null },
-      { name: 'Entertainment', user_id: null },
-      { name: 'Transport', user_id: null },
+      { name: 'food', user_id: null },
+      { name: 'entertainment', user_id: null },
+      { name: 'transport', user_id: null },
+      { name: 'health', user_id: null },
+      { name: 'education', user_id: null },
+      { name: 'shopping', user_id: null },
+      { name: 'utilities', user_id: null },
+      { name: 'savings', user_id: null },
+      { name: 'travel', user_id: null },
+      { name: 'miscellaneous', user_id: null },
     ];
 
     // Inserta las categorías si no existen
