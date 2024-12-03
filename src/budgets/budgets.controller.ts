@@ -29,6 +29,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt-auth.guard';
+import { IBudgetBalance } from './interfaces/balance.interface';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Budgets')
@@ -162,5 +163,41 @@ export class BudgetsController {
   }> {
     const user = req.user as IPayloadToken;
     return await this.budgetsService.remove(id, user.sub);
+  }
+
+  @Get(':id/balance')
+  @ApiParam({
+    name: 'id',
+    description: 'The unique identifier of the budget (UUID).',
+    required: true,
+    example: 'b2c6e182-6aef-4c38-8d26-9153d7ebc7d2',
+  })
+  @ApiOkResponse({
+    description: 'Budget balance retrieved successfully.',
+    schema: {
+      example: {
+        initial_amount: 1000,
+        spent_amount: 200,
+        percentage_spent_amount: 20.0,
+        remaining_amount: 800,
+        percentage_remaining_amount: 80.0,
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Budget to calculate the balance not found',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized access.',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Error: Unable to retrieve the budget balance.',
+  })
+  async getBalance(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<IBudgetBalance> {
+    const user = req.user as IPayloadToken;
+    return await this.budgetsService.getBalance(id, user.sub);
   }
 }

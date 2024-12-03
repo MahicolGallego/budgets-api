@@ -13,6 +13,7 @@ import { CategoriesService } from 'src/categories/categories.service';
 import { FilterBudgetDto } from './dto/filter-budget.dto';
 import { budgetStatus } from 'src/common/constants/enums/budget-status.enum';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { IBudgetBalance } from './interfaces/balance.interface';
 
 @Injectable()
 export class BudgetsService {
@@ -233,6 +234,63 @@ export class BudgetsService {
 
       return {
         message: 'Budget deleted successfully',
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async getBalance(id: string, user_id: string): Promise<IBudgetBalance> {
+    try {
+      const budget = await this.budgetsRepository.findOne({
+        where: { id, user_id },
+        relations: ['transactions'],
+      });
+      if (!budget) {
+        throw new NotFoundException(
+          'Budget to calculate the balance not found',
+        );
+      }
+
+      const initial_amount = budget.amount;
+
+      const transactions = budget.transactions;
+
+      if (!transactions.length) {
+        return {
+          initial_amount,
+          spent_amount: 0,
+          percentage_spent_amount: 0,
+          remaining_amount: initial_amount,
+          percentage_remaining_amount: 100,
+        };
+      }
+
+      const spent_amount = transactions.reduce(
+        (accumulated, currentTransaction) => {
+          return accumulated + currentTransaction.amount;
+        },
+        0,
+      );
+
+      const percentage_spent_amount = (spent_amount * 100) / initial_amount;
+
+      const remaining_amount =
+        initial_amount - spent_amount <= 0 ? 0 : initial_amount - spent_amount;
+
+      const percentage_remaining_amount =
+        remaining_amount <= 0 ? 0 : (remaining_amount * 100) / initial_amount;
+
+      // Return calculations with percentages to 2 decimal places
+      return {
+        initial_amount,
+        spent_amount,
+        percentage_spent_amount: parseFloat(percentage_spent_amount.toFixed(2)),
+        remaining_amount,
+        percentage_remaining_amount: parseFloat(
+          percentage_remaining_amount.toFixed(2),
+        ),
       };
     } catch (error) {
       console.error(error);
