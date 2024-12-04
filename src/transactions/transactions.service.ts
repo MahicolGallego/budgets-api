@@ -1,10 +1,18 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Transaction } from './entities/transaction.entity';
 import { BudgetsService } from 'src/budgets/budgets.service';
+import TransactionQueriesDto from './dto/transactionQueries.dto';
 
 @Injectable()
 export class TransactionsService {
@@ -22,14 +30,19 @@ export class TransactionsService {
       throw new BadRequestException('The amount must be greater than 0.');
     }
 
-    const budget = await this.budgetService.findOne( budget_id, user_id );
+    const budget = await this.budgetService.findOne(budget_id, user_id);
 
     if (!budget) {
       throw new NotFoundException(`Budget with ID ${budget_id} not found.`);
     }
 
-    if (new Date(date) < new Date(budget.start_date) || new Date(date) > new Date(budget.end_date)) {
-      throw new BadRequestException('The date must fall within the budget range.');
+    if (
+      new Date(date) < new Date(budget.start_date) ||
+      new Date(date) > new Date(budget.end_date)
+    ) {
+      throw new BadRequestException(
+        'The date must fall within the budget range.',
+      );
     }
 
     const transaction = this.transactionRepository.create({
@@ -39,17 +52,29 @@ export class TransactionsService {
       description,
     });
 
+    const isExceeded =
+      await this.budgetService.checkBudgetExceedance(user_id, budget_id);
+    if (isExceeded) {
+      throw new BadRequestException('This budget has been exceeded.');
+    }
+
     return this.transactionRepository.save(transaction);
   }
 
   // Obtener todas las transacciones con filtros opcionales
-  async findAll(minDate?: string, maxDate?: string, minAmount?: number, maxAmount?: number) {
+  async findAll(
+   transactionQueries: TransactionQueriesDto
+  ) {
     const query = this.transactionRepository.createQueryBuilder('transaction');
+    const { budget_id, user_id, minDay, maxDay, minAmount, maxAmount } = transactionQueries;
+    // if (minDate) query.andWhere('transaction.date >= :minDate', { minDate });
+    // if (maxDate) query.andWhere('transaction.date <= :maxDate', { maxDate });
 
-    if (minDate) query.andWhere('transaction.date >= :minDate', { minDate });
-    if (maxDate) query.andWhere('transaction.date <= :maxDate', { maxDate });
-    if (minAmount) query.andWhere('transaction.amount >= :minAmount', { minAmount });
-    if (maxAmount) query.andWhere('transaction.amount <= :maxAmount', { maxAmount });
+    // query.innerJoin()
+    if (minAmount)
+      query.andWhere('transaction.amount >= :minAmount', { minAmount });
+    if (maxAmount)
+      query.andWhere('transaction.amount <= :maxAmount', { maxAmount });
 
     return query.getMany();
   }
@@ -69,10 +94,20 @@ export class TransactionsService {
   }
 
   // Actualizar una transacción
-  async update(user_id: string, id: string, updateTransactionDto: UpdateTransactionDto) {
+  async update(
+    user_id: string,
+    id: string,
+    updateTransactionDto: UpdateTransactionDto,
+  ) {
     const { budget_id, amount, date } = updateTransactionDto;
 
-    const transaction = await this.transactionRepository.findOne({ where: { id } });
+    if(!budget_id)
+      throw new BadRequestException('Budget ID is required.');
+
+    const transaction = await this.transactionRepository.findOne({
+    where: { id , budget_id,  budget: {user_id}},
+    relations: ['budget']
+    });
 
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found.`);
@@ -82,8 +117,8 @@ export class TransactionsService {
       throw new BadRequestException('The amount must be greater than 0.');
     }
 
-    if (budget_id || date) {
-      const budget = await this.budgetService.findOne( budget_id, user_id );
+    if (date) {
+      const budget = await this.budgetService.findOne(budget_id, user_id);
 
       // budget_id ?? transaction.budget_id
 
@@ -91,34 +126,55 @@ export class TransactionsService {
         throw new NotFoundException(`Budget with ID ${budget_id} not found.`);
       }
 
-      if (date && (new Date(date) < new Date(budget.start_date) || new Date(date) > new Date(budget.end_date))) {
-        throw new BadRequestException('The date must fall within the budget range.');
+      if (
+        (new Date(date) < new Date(budget.start_date) ||
+          new Date(date) > new Date(budget.end_date))
+      ) {
+        throw new BadRequestException(
+          'The date must fall within the budget range.',
+        );
       }
-
-      transaction.budget = budget;
     }
 
     Object.assign(transaction, updateTransactionDto);
 
-    return this.transactionRepository.save(transaction);
+    const updatedTransaction = await this.transactionRepository.save(transaction)
+
+    if(!updatedTransaction)
+      throw new BadRequestException('Transaction could not be updated.');
+
+    this.budgetService.checkBudgetExceedance(
+      transaction.budget.id, user_id
+    );
+
+    return updatedTransaction;
   }
 
   // Eliminar una transacción
-  async remove(id: string) {
-    const transaction = await this.transactionRepository.findOne({ where: { id } });
+  async remove(user_id: string,  id: string) {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id },
+    });
 
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found.`);
+    }
+
+    const isExceeded = await this.budgetService.checkBudgetExceedance(
+      user_id,
+      transaction.budget.id,
+    );
+    if (isExceeded) {
+      throw new BadRequestException('This budget has been exceeded.');
     }
 
     return this.transactionRepository.remove(transaction);
   }
 
   async findByBudgetId(budgetId: string): Promise<Transaction[]> {
-    return this.transactionRepository.find({
-      where: { budget: { id: budgetId } },  // Relacionar con el presupuesto
-      relations: ['budget'],  // Asegúrate de incluir la relación del presupuesto
+    return await this.transactionRepository.find({
+      where: { budget: { id: budgetId } }, // Relacionar con el presupuesto
+      relations: ['budget'], // Asegúrate de incluir la relación del presupuesto
     });
   }
-
 }

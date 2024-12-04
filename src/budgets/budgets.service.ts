@@ -418,10 +418,10 @@ export class BudgetsService {
     }
   }
   
-  async checkBudgetExceedance(budgetId: string, threshold: number = 0.9): Promise<boolean> {
+  async checkBudgetExceedance(budgetId: string, user_id: string, threshold: number = 0.9): Promise<boolean> {
     try {
       const budget = await this.budgetsRepository.findOne({
-        where: { id: budgetId },
+        where: { id: budgetId, user_id },
         relations: ['transactions'], // Relacionar las transacciones con el presupuesto
       });
   
