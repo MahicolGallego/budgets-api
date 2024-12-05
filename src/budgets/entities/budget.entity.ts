@@ -71,6 +71,8 @@ export class Budget {
   category: Category;
 
   @Exclude()
-  @OneToMany(() => Transaction, (transaction) => transaction.budget)
+  @OneToMany(() => Transaction, (transaction) => transaction.budget, {
+    onDelete: 'CASCADE',
+  })
   transactions: Transaction[];
 }

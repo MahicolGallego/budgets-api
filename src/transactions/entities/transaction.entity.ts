@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Transform } from 'class-transformer';
 import { Budget } from 'src/budgets/entities/budget.entity';
 import {
@@ -12,16 +13,20 @@ import {
 
 @Entity('transactions')
 export class Transaction {
+  @ApiProperty()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ApiProperty()
   @Column('uuid')
   budget_id: string;
 
+  @ApiProperty()
   @Transform(({ value }) => parseFloat(value))
   @Column('decimal', { precision: 10, scale: 2 })
   amount: number;
 
+  @ApiProperty()
   @Column('timestamp')
   date: Date;
 
@@ -33,9 +38,11 @@ export class Transaction {
   @UpdateDateColumn()
   updated_at: Date;
 
+  @ApiProperty()
   @Column('varchar', { length: 255, nullable: true })
   description: string;
 
+  @Exclude()
   @ManyToOne(() => Budget, (budget) => budget.transactions, {
     onDelete: 'CASCADE',
   })

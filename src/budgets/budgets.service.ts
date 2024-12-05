@@ -18,6 +18,9 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { TransactionsService } from 'src/transactions/transactions.service';
 import AlertsGateway from 'src/alerts/alert.gateway';
 import { IBudgetBalance } from './interfaces/balance.interface';
+import { IAlertMessage } from 'src/common/interfaces/alert-message.interface';
+import { alert_type } from 'src/common/constants/enums/alert-type.enum';
+import { alert_message } from 'src/common/constants/enums/alert-message.enum';
 
 @Injectable()
 export class BudgetsService {
@@ -136,6 +139,27 @@ export class BudgetsService {
       });
       if (!budget) {
         throw new NotFoundException('Budget not found');
+      }
+      return budget;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async findOneActive(id: string, user_id: string): Promise<Budget> {
+    try {
+      const budget = await this.budgetsRepository.findOne({
+        where: {
+          id,
+          user_id,
+          status: budgetStatus.ACTIVE,
+        },
+      });
+      if (!budget) {
+        throw new NotFoundException(
+          'Budget not found or currently not active. Unable to operate budget transactions that are not active',
+        );
       }
       return budget;
     } catch (error) {
@@ -393,57 +417,127 @@ export class BudgetsService {
     }
   }
 
-  async calculateTotalSpent(budgetId: string): Promise<number> {
+  // Function to calculate the percentages of total expenses, with and without the amount
+  // of the last transaction, to determine whether to send informative alerts to the user or not
+  calculatePercentageTotalSpent(
+    budget: Budget,
+    amount_last_transaction: number,
+  ): {
+    percentage_before_last_transaction: number;
+    percentage_after_last_transaction: number;
+  } {
     try {
-      const transactions = await this.transactionsService.findByBudgetId(budgetId);  // Obtén las transacciones
-      const totalSpent = transactions.reduce((total, transaction) => total + transaction.amount, 0);  // Calcula el total
+      const transactions = budget.transactions;
 
-      // Obtén el presupuesto
-      const budget = await this.budgetsRepository.findOne({ where: { id: budgetId } });
+      if (!transactions)
+        throw new InternalServerErrorException('No transactions found');
 
-      if (!budget) {
-        throw new InternalServerErrorException('Budget not found');
-      }
+      const totalSpent = transactions.reduce(
+        (total, transaction) => total + transaction.amount,
+        0,
+      ); // Calcula el total
 
-      // Verifica si el total gastado excede el presupuesto
-      if (totalSpent > budget.amount) {
-        const message = `Warning: You have exceeded your budget for ${budget.name} by ${totalSpent - budget.amount}`;
-        this.alertsGateway.sendAlert(message);  // Envia la alerta al cliente
-      }
+      const totalSpentWithOutLastTransaction =
+        totalSpent - amount_last_transaction;
 
-      return totalSpent;
+      const percentage_before_last_transaction =
+        (totalSpentWithOutLastTransaction * 100) / budget.amount;
+      const percentage_after_last_transaction =
+        (totalSpent * 100) / budget.amount;
+
+      return {
+        percentage_before_last_transaction,
+        percentage_after_last_transaction,
+      };
     } catch (error) {
       console.error(error);
       throw new InternalServerErrorException('Error calculating total spent');
     }
   }
-  
-  async checkBudgetExceedance(budgetId: string, user_id: string, threshold: number = 0.9): Promise<boolean> {
+
+  async sendAlertsByBudgetSpendingPercentages(
+    user_id: string,
+    budgetId: string,
+    amount_last_transaction: number,
+  ) {
     try {
       const budget = await this.budgetsRepository.findOne({
         where: { id: budgetId, user_id },
         relations: ['transactions'], // Relacionar las transacciones con el presupuesto
       });
-  
+
       if (!budget) {
         throw new NotFoundException('Budget not found');
       }
-  
-      const totalSpent = await this.calculateTotalSpent(budgetId);
-  
-      // Comparar si el gasto total excede el porcentaje (por defecto 90%)
-      if (totalSpent > budget.amount * threshold) {
-        // Aquí puedes emitir una alerta, por ejemplo a través de WebSockets o alguna notificación
-        console.log(`Alert: Budget exceeded for ${budget.name}`);
-        return true;
-      }
-  
-      return false;
+
+      const {
+        percentage_before_last_transaction,
+        percentage_after_last_transaction,
+      } = this.calculatePercentageTotalSpent(budget, amount_last_transaction);
+
+      if (percentage_after_last_transaction >= 50)
+        this.sendAlert(
+          budget,
+          user_id,
+          percentage_before_last_transaction,
+          percentage_after_last_transaction,
+        );
+
+      return;
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
-  
 
+  sendAlert(
+    budget: Budget,
+    user_id: string,
+    percentage_before_last_transaction: number,
+    percentage_after_last_transaction: number,
+  ) {
+    let alertMessage: IAlertMessage;
+    const currentDay = new Date().getDate();
+
+    if (
+      percentage_before_last_transaction < 100 &&
+      percentage_after_last_transaction >= 100 &&
+      !alertMessage
+    ) {
+      alertMessage = {
+        alert_type: alert_type.BY_HUNDRED_PERCENTAGE,
+        budget_name: budget.name,
+        message: alert_message.BY_HUNDRED_PERCENTAGE,
+      };
+    }
+
+    if (
+      percentage_before_last_transaction < 80 &&
+      percentage_after_last_transaction >= 80 &&
+      !alertMessage
+    ) {
+      alertMessage = {
+        alert_type: alert_type.BY_EIGHTY_PERCENTAGE,
+        budget_name: budget.name,
+        message: alert_message.BY_EIGHTY_PERCENTAGE,
+      };
+    }
+
+    if (
+      percentage_before_last_transaction < 50 &&
+      percentage_after_last_transaction >= 50 &&
+      currentDay <= 15 &&
+      !alertMessage
+    ) {
+      alertMessage = {
+        alert_type: alert_type.BY_FIFTY_PERCENTAGE,
+        budget_name: budget.name,
+        message: alert_message.BY_FIFTY_PERCENTAGE,
+      };
+    }
+
+    if (alertMessage) this.alertsGateway.sendAlert(user_id, alertMessage);
+
+    return;
+  }
 }
