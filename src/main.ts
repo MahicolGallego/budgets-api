@@ -24,7 +24,6 @@ async function bootstrap() {
   await categorySeeder.run();
   console.log('Seeding complete.');
 
-  await app.close();
 
   //enable deserialization of response objects (apply class-transformer)
   const reflector = app.get(Reflector);
