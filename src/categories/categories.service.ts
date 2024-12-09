@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class CategoriesService {
@@ -23,9 +23,13 @@ export class CategoriesService {
 
   async findAll(userId: string): Promise<Category[]> {
     try {
-      return await this.categoryRepository.find({
-        where: { user_id: In([userId, null]) },
-      });
+      console.log(userId);
+      return await this.categoryRepository
+        .createQueryBuilder('category')
+        .where('category.user_id = :userId OR category.user_id IS NULL', {
+          userId,
+        })
+        .getMany();
     } catch (error) {
       console.error(error);
       throw error;
@@ -37,9 +41,16 @@ export class CategoriesService {
     categoryName: string,
   ): Promise<Category> {
     try {
-      return this.categoryRepository.findOne({
-        where: { user_id: userId, name: categoryName },
-      });
+      return await this.categoryRepository
+        .createQueryBuilder('category')
+        .where(
+          '(category.user_id = :userId OR category.user_id IS NULL) AND category.name = :categoryName',
+          {
+            userId,
+            categoryName,
+          },
+        )
+        .getOne();
     } catch (error) {
       console.error(error);
       throw error;
