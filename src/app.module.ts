@@ -34,7 +34,7 @@ import { AlertsModule } from './alerts/alert.module';
     BudgetsModule,
     CategoriesModule,
     SeedersModule,
-    AlertsModule
+    AlertsModule,
   ],
 })
 export class AppModule {}

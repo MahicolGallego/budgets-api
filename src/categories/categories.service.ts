@@ -12,6 +12,7 @@ export class CategoriesService {
   ) {}
   async create(createCategoryDto: CreateCategoryDto) {
     try {
+      createCategoryDto.name = createCategoryDto.name.toLowerCase().trim();
       const categoryEntity = this.categoryRepository.create(createCategoryDto);
       const response = await this.categoryRepository.save(categoryEntity);
       return response;
@@ -23,7 +24,6 @@ export class CategoriesService {
 
   async findAll(userId: string): Promise<Category[]> {
     try {
-      console.log(userId);
       return await this.categoryRepository
         .createQueryBuilder('category')
         .where('category.user_id = :userId OR category.user_id IS NULL', {
@@ -47,7 +47,7 @@ export class CategoriesService {
           '(category.user_id = :userId OR category.user_id IS NULL) AND category.name = :categoryName',
           {
             userId,
-            categoryName,
+            categoryName: categoryName.toLowerCase(),
           },
         )
         .getOne();
