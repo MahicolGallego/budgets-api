@@ -27,6 +27,8 @@ export class Transaction {
   amount: number;
 
   @ApiProperty()
+  // assure that the value is a Date type
+  @Transform(({ value }) => (value instanceof Date ? value : new Date(value)))
   @Column('timestamp')
   date: Date;
 
