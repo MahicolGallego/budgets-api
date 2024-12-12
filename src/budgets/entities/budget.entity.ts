@@ -20,7 +20,7 @@ import { ApiProperty } from '@nestjs/swagger';
 @Entity('budgets')
 export class Budget {
   @ApiProperty()
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Exclude()
