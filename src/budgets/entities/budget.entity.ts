@@ -43,12 +43,12 @@ export class Budget {
   @ApiProperty()
   // assure that the value is a Date type
   @Transform(({ value }) => (value instanceof Date ? value : new Date(value)))
-  @Column({ type: 'date' })
+  @Column({ type: 'timestamp' })
   start_date: Date;
 
   @ApiProperty()
   @Transform(({ value }) => (value instanceof Date ? value : new Date(value)))
-  @Column({ type: 'date' })
+  @Column({ type: 'timestamp' })
   end_date: Date;
 
   @ApiProperty()

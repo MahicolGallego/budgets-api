@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsNumber,
@@ -25,7 +26,8 @@ export class FilterBudgetDto {
     maximum: 11,
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Month must be a valid number.' })
   @Min(0, { message: 'Month must be at least 0 (January).' })
   @Max(11, { message: 'The month must be no more than 11 (December).' })
   month?: number;
