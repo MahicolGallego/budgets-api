@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   forwardRef,
   Inject,
   Injectable,
@@ -57,6 +58,15 @@ export class AuthService {
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  verifyToken(token: string): { token_is_valid: boolean } {
+    try {
+      this.jwtService.verify(token);
+      return { token_is_valid: true };
+    } catch (_error) {
+      throw new BadRequestException('Invalid or expired token.');
     }
   }
 }

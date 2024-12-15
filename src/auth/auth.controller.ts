@@ -2,6 +2,7 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -105,5 +106,43 @@ export class AuthController {
     const user = req.user as User;
     const jwtAndUser = this.authService.generateJwtToken(user);
     return jwtAndUser;
+  }
+
+  @Post('verify')
+  @ApiOperation({
+    summary: 'Verify the validity of a JWT token',
+    description:
+      'Checks if the provided JWT token is valid and has not expired.',
+  })
+  @ApiBody({
+    description: 'JWT token to verify',
+    schema: {
+      example: {
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Token verification result.',
+    schema: {
+      example: {
+        token_is_valid: true,
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid token provided.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Invalid or expired token',
+        error: 'Bad Request',
+      },
+    },
+  })
+  verifyToken(@Body('token') token: string): {
+    token_is_valid: boolean;
+  } {
+    return this.authService.verifyToken(token);
   }
 }

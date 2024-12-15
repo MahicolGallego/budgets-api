@@ -20,6 +20,9 @@ import { UsersModule } from 'src/users/users.module';
         return {
           secret: configService.get<string>('JWT_SECRET'),
           signOptions: { expiresIn: '1d' },
+          verifyOptions: {
+            ignoreExpiration: false,
+          },
         };
       },
     }),
