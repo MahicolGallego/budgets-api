@@ -38,12 +38,12 @@ export class TransactionsService {
     const currentDate = new Date();
 
     if (
-      new Date(date) < new Date(budget.start_date) ||
-      new Date(date) > new Date(budget.end_date) ||
-      new Date(date) > currentDate
+      date.getTime() < budget.start_date.getTime() ||
+      date.getTime() > budget.end_date.getTime() ||
+      date.getTime() > currentDate.getTime()
     ) {
       throw new BadRequestException(
-        'The date must be within the budget range or not be higher than the current date.',
+        'The date must be within the budget month range or not be higher than the current date.',
       );
     }
 
@@ -72,6 +72,12 @@ export class TransactionsService {
     user_id: string,
     { min_day, max_day, min_amount, max_amount }: FilterTransactionDto,
   ): Promise<Transaction[]> {
+    if (min_day && max_day && min_day > max_day) {
+      throw new BadRequestException(
+        'The minimum day cannot be greater than the maximum day.',
+      );
+    }
+
     const query = this.transactionRepository
       .createQueryBuilder('transaction')
       .innerJoin(
@@ -85,29 +91,30 @@ export class TransactionsService {
       );
 
     if (min_amount)
-      query.andWhere('transaction.amount >= :minAmount', { min_amount });
+      query.andWhere('transaction.amount >= :min_amount', { min_amount });
     if (max_amount)
-      query.andWhere('transaction.amount <= :maxAmount', { max_amount });
+      query.andWhere('transaction.amount <= :max_amount', { max_amount });
 
     let transactions = await query.getMany();
 
     if (transactions) {
-      if (min_day)
-        transactions = transactions.filter(
-          (transaction) => transaction.date.getDate() >= min_day,
-        );
-
-      if (max_day)
-        transactions = transactions.filter(
-          (transaction) => transaction.date.getDate() <= max_day,
-        );
-
-      if (min_day && max_day)
+      if (min_day && max_day) {
         transactions = transactions.filter(
           (transaction) =>
-            transaction.date.getDate() >= min_day &&
-            transaction.date.getDate() <= max_day,
+            transaction.date.getUTCDate() >= min_day &&
+            transaction.date.getUTCDate() <= max_day,
         );
+      } else {
+        if (min_day)
+          transactions = transactions.filter(
+            (transaction) => transaction.date.getUTCDate() >= min_day,
+          );
+
+        if (max_day)
+          transactions = transactions.filter(
+            (transaction) => transaction.date.getUTCDate() <= max_day,
+          );
+      }
     }
 
     return transactions;
@@ -153,9 +160,9 @@ export class TransactionsService {
     if (date) {
       const currentDate = new Date();
       if (
-        new Date(date) < new Date(budget.start_date) ||
-        new Date(date) > new Date(budget.end_date) ||
-        new Date(date) > currentDate
+        date.getTime() < budget.start_date.getTime() ||
+        date.getTime() > budget.end_date.getTime() ||
+        date.getTime() > currentDate.getTime()
       ) {
         throw new BadRequestException(
           'The new date must be within the budget range or not be higher than the current date.',

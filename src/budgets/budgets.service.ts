@@ -1,7 +1,5 @@
 import {
   BadRequestException,
-  forwardRef,
-  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -15,7 +13,6 @@ import { CategoriesService } from 'src/categories/categories.service';
 import { FilterBudgetDto } from './dto/filter-budget.dto';
 import { budgetStatus } from 'src/common/constants/enums/budget-status.enum';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { TransactionsService } from 'src/transactions/transactions.service';
 import AlertsGateway from 'src/alerts/alert.gateway';
 import { IBudgetBalance } from './interfaces/balance.interface';
 import { IAlertMessage } from 'src/common/interfaces/alert-message.interface';
@@ -28,13 +25,11 @@ export class BudgetsService {
     @InjectRepository(Budget)
     private readonly budgetsRepository: Repository<Budget>,
     private readonly categoriesService: CategoriesService,
-    @Inject(forwardRef(() => TransactionsService))
-    private readonly transactionsService: TransactionsService,
     private readonly alertsGateway: AlertsGateway,
   ) {}
 
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
-    timeZone: 'America/Bogota', // Set the specific time zone
+    timeZone: 'UTC',
   })
   handleUpdatesBudgetsStatus() {
     try {
@@ -53,8 +48,8 @@ export class BudgetsService {
   ): Promise<Budget> {
     const { name, category_name, amount, month } = createBudgetDto;
 
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getUTCFullYear();
+    const currentMonth = new Date().getUTCMonth();
 
     if (month < currentMonth) {
       throw new BadRequestException(
@@ -65,6 +60,7 @@ export class BudgetsService {
     // Calculate start and end dates
     const start_date = new Date(currentYear, month, 1);
     const end_date = new Date(currentYear, month + 1, 0);
+    end_date.setUTCHours(23, 59, 59, 999); // set at the end of the day
 
     // define status for budget
     const status =
@@ -176,7 +172,7 @@ export class BudgetsService {
     const { name, amount, category_name, month } = updateBudgetDto;
 
     try {
-      // Buscar el presupuesto
+      // search for the budget
       const budget = await this.budgetsRepository.findOne({
         where: { id, user_id },
       });
@@ -204,7 +200,6 @@ export class BudgetsService {
         }
       }
 
-      //
       if (month) {
         if (budget.status !== budgetStatus.PENDING)
           throw new BadRequestException(
@@ -213,18 +208,19 @@ export class BudgetsService {
 
         const currentDate = new Date();
 
-        if (month < currentDate.getMonth()) {
+        if (month < currentDate.getUTCMonth()) {
           throw new BadRequestException(
             'The budget date cannot be updated to a month earlier than the current month.',
           );
         }
-        const start_date = new Date(currentDate.getFullYear(), month, 1);
-        const end_date = new Date(currentDate.getFullYear(), month + 1, 0);
+        const start_date = new Date(currentDate.getUTCFullYear(), month, 1);
+        const end_date = new Date(currentDate.getUTCFullYear(), month + 1, 0);
 
         budget.start_date = start_date;
         budget.end_date = end_date;
+        end_date.setUTCHours(23, 59, 59, 999); // set at the end of the day
 
-        if (month === currentDate.getMonth()) {
+        if (month === currentDate.getUTCMonth()) {
           budget.status = budgetStatus.ACTIVE;
         }
       }
@@ -341,7 +337,7 @@ export class BudgetsService {
   }
   filterBudgetByMonth(listBudget: Budget[], monthToFilter: number) {
     return listBudget.filter(
-      (budget) => budget.start_date.getMonth() === monthToFilter,
+      (budget) => budget.start_date.getUTCMonth() === monthToFilter,
     );
   }
 
@@ -357,8 +353,8 @@ export class BudgetsService {
       // filter by budgets that must be initiated the current month
       budgetsToActive = budgetsToActive.filter(
         (budget) =>
-          budget.start_date.getFullYear() === currentDate.getFullYear() &&
-          budget.start_date.getMonth() === currentDate.getMonth(),
+          budget.start_date.getUTCFullYear() === currentDate.getUTCFullYear() &&
+          budget.start_date.getUTCMonth() === currentDate.getUTCMonth(),
       );
 
       if (!budgetsToActive.length) return;
@@ -389,11 +385,9 @@ export class BudgetsService {
 
       if (!budgetsToCompleted.length) return;
 
-      // filter by budgets that must be finish the previous month
+      // filter by budgets that must be finish the previous mont
       budgetsToCompleted = budgetsToCompleted.filter(
-        (budget) =>
-          budget.end_date.getFullYear() <= currentDate.getFullYear() &&
-          budget.end_date.getMonth() < currentDate.getMonth(),
+        (budget) => budget.end_date.getTime() <= currentDate.getTime(),
       );
 
       if (!budgetsToCompleted.length) return;
@@ -497,7 +491,7 @@ export class BudgetsService {
     percentage_after_last_transaction: number,
   ) {
     let alertMessage: IAlertMessage;
-    const currentDay = new Date().getDate();
+    const currentDay = new Date().getUTCDate();
 
     if (
       percentage_before_last_transaction < 100 &&

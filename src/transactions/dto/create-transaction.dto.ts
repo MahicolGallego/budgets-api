@@ -33,7 +33,7 @@ export class CreateTransactionDto {
   })
   @IsDateString()
   @Type(() => Date)
-  date: string;
+  date: Date;
 
   @ApiProperty({
     description: 'Optional description of the transaction.',

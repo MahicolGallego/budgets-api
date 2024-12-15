@@ -8,6 +8,7 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class UpdateTransactionDto {
   @ApiProperty({
@@ -35,7 +36,8 @@ export class UpdateTransactionDto {
   })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  @Type(() => Date)
+  date?: Date;
 
   @ApiPropertyOptional({
     description: 'New description for the transaction.',
