@@ -132,6 +132,7 @@ export class BudgetsService {
           id,
           user_id,
         },
+        relations: ['category'],
       });
       if (!budget) {
         throw new NotFoundException('Budget not found');
