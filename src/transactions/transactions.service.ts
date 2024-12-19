@@ -84,7 +84,7 @@ export class TransactionsService {
       .innerJoin(
         Budget,
         'budget',
-        'budget.id = :budget_id AND budget.user_id = :user_id',
+        'transaction.budget_id = :budget_id AND budget.user_id = :user_id',
         {
           budget_id,
           user_id,
@@ -209,9 +209,9 @@ export class TransactionsService {
       if (!transaction)
         throw new NotFoundException(`Transaction with ID ${id} not found.`);
 
-      const result = await this.transactionRepository.delete(transaction);
+      const result = await this.transactionRepository.remove(transaction);
 
-      if (!result.affected)
+      if (!result)
         throw new NotFoundException('Transaction could not be deleted.');
 
       return { message: 'Transaction deleted successfully' };
