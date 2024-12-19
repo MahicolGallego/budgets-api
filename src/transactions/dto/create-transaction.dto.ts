@@ -2,10 +2,10 @@ import { Type } from 'class-transformer';
 import {
   IsUUID,
   IsNumber,
-  IsDateString,
   IsOptional,
   IsString,
   Min,
+  IsDate,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -31,7 +31,7 @@ export class CreateTransactionDto {
     description: 'Date of the transaction in ISO 8601 format.',
     example: '2024-12-04T12:34:56Z',
   })
-  @IsDateString()
+  @IsDate()
   @Type(() => Date)
   date: Date;
 

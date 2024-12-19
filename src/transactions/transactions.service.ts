@@ -54,7 +54,8 @@ export class TransactionsService {
       description,
     });
 
-    await this.transactionRepository.save(transaction);
+    const newRegisteredTransaction =
+      await this.transactionRepository.save(transaction);
 
     // Send alerts based on budget spending thresholds.
     await this.budgetService.sendAlertsByBudgetSpendingPercentages(
@@ -63,7 +64,7 @@ export class TransactionsService {
       transaction.amount,
     );
 
-    return;
+    return newRegisteredTransaction;
   }
 
   // Obtener todas las transacciones con filtros opcionales
