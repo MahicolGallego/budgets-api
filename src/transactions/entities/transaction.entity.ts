@@ -29,7 +29,7 @@ export class Transaction {
   @ApiProperty()
   // assure that the value is a Date type
   @Transform(({ value }) => (value instanceof Date ? value : new Date(value)))
-  @Column('timestamp')
+  @Column({ type: 'timestamptz' })
   date: Date;
 
   @Exclude()

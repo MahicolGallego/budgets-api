@@ -57,10 +57,10 @@ export class BudgetsService {
       );
     }
 
-    // Calculate start and end dates
-    const start_date = new Date(currentYear, month, 1);
-    const end_date = new Date(currentYear, month + 1, 0);
-    end_date.setUTCHours(23, 59, 59, 999); // set at the end of the day
+    // Calculate start and end dates in UTC format
+    const start_date = new Date(Date.UTC(currentYear, month, 1));
+    const end_date = new Date(Date.UTC(currentYear, month + 1, 0));
+    end_date.setUTCHours(23, 59, 59); // set at the end of the day
 
     // define status for budget
     const status =
@@ -214,12 +214,18 @@ export class BudgetsService {
             'The budget date cannot be updated to a month earlier than the current month.',
           );
         }
-        const start_date = new Date(currentDate.getUTCFullYear(), month, 1);
-        const end_date = new Date(currentDate.getUTCFullYear(), month + 1, 0);
+
+        // Calculate start and end dates in UTC format
+        const start_date = new Date(
+          Date.UTC(currentDate.getUTCFullYear(), month, 1),
+        );
+        const end_date = new Date(
+          Date.UTC(currentDate.getUTCFullYear(), month + 1, 0),
+        );
+        end_date.setUTCHours(23, 59, 59); // set at the end of the day
 
         budget.start_date = start_date;
         budget.end_date = end_date;
-        end_date.setUTCHours(23, 59, 59, 999); // set at the end of the day
 
         if (month === currentDate.getUTCMonth()) {
           budget.status = budgetStatus.ACTIVE;

@@ -52,7 +52,8 @@ export class TransactionsController {
     examples: {
       example1: {
         summary: 'Valid request',
-        description: 'Example of a valid request to create a transaction.',
+        description:
+          'Example of a valid request to create a transaction. description is optional',
         value: {
           budget_id: 'b2c6e182-6aef-4c38-8d26-9153d7ebc7d2',
           amount: 200.5,
