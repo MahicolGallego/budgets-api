@@ -64,7 +64,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiOperation({
-    summary: 'Login a user (patient or doctor)',
+    summary: 'Login a user',
     description:
       'Authenticate a user using email and password. Returns a JWT token and user information.',
   })
