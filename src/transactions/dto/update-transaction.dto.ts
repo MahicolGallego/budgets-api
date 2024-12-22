@@ -6,6 +6,7 @@ import {
   IsString,
   Min,
   IsNotEmpty,
+  IsDate,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -35,7 +36,7 @@ export class UpdateTransactionDto {
     example: '2024-12-04T12:34:56Z',
   })
   @IsOptional()
-  @IsDateString()
+  @IsDate()
   @Type(() => Date)
   date?: Date;
 
