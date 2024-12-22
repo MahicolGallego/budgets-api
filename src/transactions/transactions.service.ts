@@ -79,6 +79,12 @@ export class TransactionsService {
       );
     }
 
+    if (min_amount && max_amount && min_amount > max_amount) {
+      throw new BadRequestException(
+        'The minimum amount cannot be greater than the maximum amount.',
+      );
+    }
+
     const query = this.transactionRepository
       .createQueryBuilder('transaction')
       .innerJoin(

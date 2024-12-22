@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, Max, Min } from 'class-validator';
 
 export class FilterTransactionDto {
@@ -9,6 +10,7 @@ export class FilterTransactionDto {
     maximum: 31,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1, { message: 'Min day must be at least 0.' })
   @Max(31, { message: 'Max day must be no more than 31.' })
@@ -21,6 +23,7 @@ export class FilterTransactionDto {
     maximum: 31,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1, { message: 'Min day must be at least 0.' })
   @Max(31, { message: 'Max day must be no more than 31.' })
@@ -32,6 +35,7 @@ export class FilterTransactionDto {
     minimum: 0.01, // Establecemos que el mínimo es 0.01
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0.01, { message: 'Min amount must be at least 0.01.' })
   min_amount?: number;
@@ -42,6 +46,7 @@ export class FilterTransactionDto {
     minimum: 0.01,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0.01, { message: 'Max amount must be at least 0.01.' })
   max_amount?: number;
