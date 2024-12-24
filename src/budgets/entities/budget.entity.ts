@@ -36,8 +36,15 @@ export class Budget {
   category_id: string;
 
   @ApiProperty()
-  @Transform(({ value }) => parseFloat(value))
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: {
+      to: (value: number) => value.toString(), // Converts when saving to the database
+      from: (value: string) => parseFloat(value), // Converts when reading from the database
+    },
+  })
   amount: number;
 
   @ApiProperty()
