@@ -1,4 +1,4 @@
-import { Controller, Patch, Req, UseGuards } from '@nestjs/common';
+import { Controller, Patch, Get, Req, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt/jwt-auth.guard';
@@ -47,4 +47,25 @@ export class UsersController {
     const user = req.user as IPayloadToken;
     return await this.usersService.onboardingViewed(user.sub);
   }
+
+@Get('profile')
+@ApiOkResponse({
+  description: 'Returns the profile data of the authenticated user.',
+  schema: {
+    example: {
+      id: 'b2c6e182-6aef-4c38-8d26-9153d7ebc7d2',
+      name: 'John Doe',
+      email: 'john.doe@example.com',
+      role: Roles.USER,
+      onboarding: true,
+      createdAt: '2024-05-01T12:00:00Z',
+    },
+  },
+})
+@ApiUnauthorizedResponse({ description: 'Unauthorized. Token required.' })
+async getProfile(@Req() req: Request): Promise<User> {
+  const user = req.user as IPayloadToken;
+  return this.usersService.findOneById(user.sub);
+}
+
 }

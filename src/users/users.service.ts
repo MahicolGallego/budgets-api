@@ -12,6 +12,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from 'src/auth/auth.service';
 import { hashPassword } from 'src/common/helpers/hash-password.helper';
 import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
+
 
 // Mark the UsersService class as injectable, allowing it to be used in other classes
 @Injectable()
@@ -71,5 +73,13 @@ export class UsersService {
       console.error('Error during onboarding updating', error);
       throw error;
     }
+  }
+
+  async findOneById(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id },
+    });
+
+    return plainToInstance(User, user); // Aplica las exclusiones como @Exclude
   }
 }
