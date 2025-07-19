@@ -26,9 +26,7 @@ import { AlertsModule } from './alerts/alert.module';
         synchronize:
           configService.get<string>('STAGE') === 'prod' ? false : true, // Automatically synchronize the database schema (development only)
         logging: false, // Enable logging of SQL queries (development only)
-        ssl: {
-          rejectUnauthorized: false,
-        }
+        ssl: false
       }),
     }),
     UsersModule,
